@@ -72,10 +72,11 @@ class Deployer():
 			repo = Repo(repository_entry_path)
 			
 			branches = repo.git.branch("-r").split("\n")
-			for branch in branches:
-				branch = branch.strip().split('/')[-1]
-				log_branches.append({"project": project['name'], "branch": branch})
-				pass
+			
+			headcommit = repo.heads
+			for branch in headcommit:
+				logentry = str(branch.log()[-1])
+				log_branches.append({"project": project['name'], "branch": str(branch), "commit": logentry.split(' ')[1]})
 
 		log_docgenerator_file = open(os.path.join(self.setup['dumppath'], 'docgenerator_commands.sh'), 'w')
 		log_docgenerator_file.write(log_docgenerator_commands)
