@@ -13,6 +13,8 @@ class Deployer():
 	errors = []
 	projects = []
 	setup = []
+	ID_filter_active = True # will only select branches that start with a numeric ID followed by an underline sign
+
 	config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir,  "config"))
 
 	def __init__(self):
@@ -70,13 +72,15 @@ class Deployer():
 			###############################################
 
 			repo = Repo(repository_entry_path)
-			
-			branches = repo.git.branch("-r").split("\n")
-			
 			headcommit = repo.heads
 			for branch in headcommit:
 				logentry = str(branch.log()[-1])
-				log_branches.append({"project": project['name'], "branch": str(branch), "commit": logentry.split(' ')[1]})
+
+				branch_name = str(branch)
+
+				if (branch_name != "master"):
+					if (self.ID_filter_active == False) or ((self.ID_filter_active == True) and (re.match(r"^\d_", branch_name) is not None)):
+						log_branches.append({"project": project['name'], "branch": branch_name, "commit": logentry.split(' ')[1]})
 
 		log_docgenerator_file = open(os.path.join(self.setup['dumppath'], 'docgenerator_commands.sh'), 'w')
 		log_docgenerator_file.write(log_docgenerator_commands)
