@@ -1,0 +1,13 @@
+{
+	"redmine": {
+		"url": "http://localhost:8888",
+		"user": "deployer",
+		"apikey": "???"
+	},
+	"dumppath": "/home/deployer/dumppath",
+	"generators": [{
+		"name": "apigen",
+		"default": true,
+		"repo": "https://github.com/apigen/apigen.git"
+	}]
+}
