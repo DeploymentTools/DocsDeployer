@@ -1,18 +1,6 @@
 [{
-	"name": "Slim",
-	"repo": "https://github.com/codeguy/Slim",
-	"redmine": "slim",
-	"branch": "master"
-},
-{
-	"name": "PHPMailer",
-	"repo": "https://github.com/PHPMailer/PHPMailer",
-	"redmine": "phpmailer",
-	"branch": "master"
-},
-{
-	"name": "Mobile-Detect",
-	"repo": "https://github.com/serbanghita/Mobile-Detect",
-	"redmine": "mobiledetect",
+	"name": "CodeGraph",
+	"repo": "https://github.com/bogdananton/PHP-CodeGraph",
+	"redmine": "codegraph",
 	"branch": "master"
 }]
