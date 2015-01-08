@@ -19,9 +19,8 @@ class Deployer():
 	log_docgenerator_commands = ""
 	repo_path = ""
 	doc_output_path = ""
-
+	log_branches = []
 	ID_filter_active = True # will only select branches that start with a numeric ID followed by an underline sign
-
 	config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir,  "config"))
 
 	def __init__(self):
@@ -37,7 +36,7 @@ class Deployer():
 		docgenerator_path = os.path.join(self.get_dump_path(), "docgenerators")
 		self.make_path(docgenerator_path)
 
-		generator = FactoryGenerator.FactoryGenerator.getInstance(self.setup['generator'])
+		generator = FactoryGenerator.FactoryGenerator.get_instance(self.setup['generator'])
 		generator.dump_path = self.get_dump_path()
 		generator.docgenerator_path = docgenerator_path
 		generator.initialize()
@@ -52,9 +51,37 @@ class Deployer():
 		log_docgenerator_file = open(os.path.join(self.setup['dumppath'], 'docgenerator_commands.sh'), 'w')
 		log_docgenerator_file.write(self.log_docgenerator_commands)
 
+	def save_log_branches(self):
+		log_branches_file = open(os.path.join(self.setup['dumppath'], 'project_branches.json'), 'w')
+		log_branches_file.write(json.dumps(self.log_branches))
+
 	def make_path(self, path):
 		if (os.path.isdir(path) == False):
 			os.mkdir(path)
+
+	def refresh_repository(self, URL, path, branch):
+		if (os.path.isdir(path)):
+			repo = Repo(path)
+			origin = repo.remotes.origin
+			origin.fetch()
+			origin.pull()
+			repo.git.checkout(branch)
+		else:
+			Repo.clone_from(URL, repository_entry_path)
+		pass
+
+	def extract_branches(self, path, projectname):
+		repo = Repo(path)
+		headcommit = repo.heads
+
+		for branch in headcommit:
+			logentry = str(branch.log()[-1])
+			branch_name = str(branch)
+
+			if (branch_name != "master"):
+				if (self.ID_filter_active == False) or ((self.ID_filter_active == True) and (re.match(r"^\d_", branch_name) is not None)):
+					self.log_branches.append({"project": projectname, "branch": branch_name, "commit": logentry.split(' ')[1]})
+
 
 	def sync_repositories(self):
 		self.halt_on_error()
@@ -66,24 +93,13 @@ class Deployer():
 
 		self.make_path(repo_path)
 		self.make_path(doc_output_path)
-		
-		log_branches = []
 
 		# sync projects
 		for project in self.projects:
-			repository_URL = project['repo']
 			repository_entry_path = os.path.join(repo_path, project['name'])
 
-			if (os.path.isdir(repository_entry_path)):
-				repo = Repo(repository_entry_path)
-				origin = repo.remotes.origin
-				origin.fetch()
-				origin.pull()
-				repo.git.checkout(project['branch'])
-
-			else:
-				Repo.clone_from(repository_URL, repository_entry_path)
-			pass
+			# clone or pull
+			self.refresh_repository(project['repo'], repository_entry_path, project['branch'])
 
 			# create doc project entry folder
 			doc_entry_path = os.path.join(doc_output_path, project['name'])
@@ -95,20 +111,11 @@ class Deployer():
 			self.append_docgenerator_command(docgenerator_command)
 
 			# process branches
-			repo = Repo(repository_entry_path)
-			headcommit = repo.heads
-			for branch in headcommit:
-				logentry = str(branch.log()[-1])
-				branch_name = str(branch)
-
-				if (branch_name != "master"):
-					if (self.ID_filter_active == False) or ((self.ID_filter_active == True) and (re.match(r"^\d_", branch_name) is not None)):
-						log_branches.append({"project": project['name'], "branch": branch_name, "commit": logentry.split(' ')[1]})
+			self.extract_branches(repository_entry_path, project['name'])
 
 		# save logs
 		self.save_log_docgenerator_commands()
-		log_branches_file = open(os.path.join(self.setup['dumppath'], 'project_branches.json'), 'w')
-		log_branches_file.write(json.dumps(log_branches))
+		self.save_log_branches()
 		pass
 
 	def run_diagnostics(self):
