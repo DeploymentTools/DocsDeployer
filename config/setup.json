@@ -5,9 +5,5 @@
 		"apikey": "???"
 	},
 	"dumppath": "/home/deployer/dumppath",
-	"generators": [{
-		"name": "apigen",
-		"default": true,
-		"repo": "https://github.com/apigen/apigen.git"
-	}]
+	"generator": "apigen"
 }

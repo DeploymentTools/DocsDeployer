@@ -2,6 +2,8 @@
 # http://packages.python.org/GitPython/
 from git import Repo
 
+from Generator import FactoryGenerator
+
 import git
 import json
 import os
@@ -13,6 +15,11 @@ class Deployer():
 	errors = []
 	projects = []
 	setup = []
+	generator = False
+	log_docgenerator_commands = ""
+	repo_path = ""
+	doc_output_path = ""
+
 	ID_filter_active = True # will only select branches that start with a numeric ID followed by an underline sign
 
 	config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir,  "config"))
@@ -20,25 +27,46 @@ class Deployer():
 	def __init__(self):
 		self.load_configuration()
 		self.run_diagnostics()
+		self.init_generator()
 		pass
+
+	def get_dump_path(self):
+		return self.setup['dumppath']
+
+	def init_generator(self):
+		docgenerator_path = os.path.join(self.get_dump_path(), "docgenerators")
+		self.make_path(docgenerator_path)
+
+		generator = FactoryGenerator.FactoryGenerator.getInstance(self.setup['generator'])
+		generator.dump_path = self.get_dump_path()
+		generator.docgenerator_path = docgenerator_path
+		generator.initialize()
+		self.generator = generator
+
+		return True
+
+	def append_docgenerator_command(self, command):
+		self.log_docgenerator_commands += command + "\n"
+
+	def save_log_docgenerator_commands(self):
+		log_docgenerator_file = open(os.path.join(self.setup['dumppath'], 'docgenerator_commands.sh'), 'w')
+		log_docgenerator_file.write(self.log_docgenerator_commands)
+
+	def make_path(self, path):
+		if (os.path.isdir(path) == False):
+			os.mkdir(path)
 
 	def sync_repositories(self):
 		self.halt_on_error()
 		self.errors = []
 
-		log_docgenerator_commands = ""
-		
 		# basic paths
 		repo_path = os.path.join(self.setup['dumppath'], "repositories")
-		if (os.path.isdir(repo_path) == False):
-			os.mkdir(repo_path)
-
 		doc_output_path = os.path.join(self.setup['dumppath'], "documentation")
-		if (os.path.isdir(doc_output_path) == False):
-			os.mkdir(doc_output_path)
-		
-		apigen_binary = self.sync_docgenerator()
 
+		self.make_path(repo_path)
+		self.make_path(doc_output_path)
+		
 		log_branches = []
 
 		# sync projects
@@ -59,66 +87,29 @@ class Deployer():
 
 			# create doc project entry folder
 			doc_entry_path = os.path.join(doc_output_path, project['name'])
-			if (os.path.isdir(doc_entry_path) == False):
-				os.mkdir(doc_entry_path)
+			self.make_path(doc_entry_path)
 
 			# generate
-			docgenerator_command = "php " + apigen_binary + " generate " + " -s " + repository_entry_path + "  -d " + doc_entry_path
-			log_docgenerator_commands += docgenerator_command + "\n"
-			
-			###############################################
-			# uncomment to generate documentation
-			os.system(docgenerator_command)
-			###############################################
+			docgenerator_command = self.generator.get_command(repository_entry_path, doc_entry_path)
+			os.system(docgenerator_command) # uncomment to generate documentation
+			self.append_docgenerator_command(docgenerator_command)
 
+			# process branches
 			repo = Repo(repository_entry_path)
 			headcommit = repo.heads
 			for branch in headcommit:
 				logentry = str(branch.log()[-1])
-
 				branch_name = str(branch)
 
 				if (branch_name != "master"):
 					if (self.ID_filter_active == False) or ((self.ID_filter_active == True) and (re.match(r"^\d_", branch_name) is not None)):
 						log_branches.append({"project": project['name'], "branch": branch_name, "commit": logentry.split(' ')[1]})
 
-		log_docgenerator_file = open(os.path.join(self.setup['dumppath'], 'docgenerator_commands.sh'), 'w')
-		log_docgenerator_file.write(log_docgenerator_commands)
-
+		# save logs
+		self.save_log_docgenerator_commands()
 		log_branches_file = open(os.path.join(self.setup['dumppath'], 'project_branches.json'), 'w')
 		log_branches_file.write(json.dumps(log_branches))
-
 		pass
-
-	def sync_docgenerator(self):
-		docgenerator_path = os.path.join(self.setup['dumppath'], "docgenerators")
-	
-		if (os.path.isdir(docgenerator_path) == False):
-			os.mkdir(docgenerator_path)
-
-		# # method 1 - using repos and composer
-		# docgenerator_apigen_path = os.path.join(self.setup['dumppath'], "docgenerators", "apigen")
-
-		# if (os.path.isdir(docgenerator_apigen_path) == False):
-		# 	os.mkdir(docgenerator_apigen_path)
-		# 	Repo.clone_from("https://github.com/apigen/apigen.git", docgenerator_apigen_path)
-		#
-		# # download composer & composer update apigen
-		# composer_path = os.path.join(docgenerator_apigen_path, "composer.phar")
-		# if (os.path.isfile(composer_path) == False):
-		# 	urllib.urlretrieve("https://getcomposer.org/composer.phar", composer_path)
-		# 	os.system("cd " + docgenerator_apigen_path + " && php " + composer_path + " update")
-		#
-		# os.system("php " + os.path.join(docgenerator_apigen_path, "bin", "apigen") + " list")
-
-		# method 2 - phar
-		docgenerator_apigen_file = os.path.join(self.setup['dumppath'], "docgenerators", "apigen.phar")
-		if (os.path.isfile(docgenerator_apigen_file) == False):
-			urllib.urlretrieve("http://apigen.org/apigen.phar", docgenerator_apigen_file)
-		
-		# os.system("php " + docgenerator_apigen_file + " generate --source ... --destination ...")
-		# sys.exit()
-		return docgenerator_apigen_file
 
 	def run_diagnostics(self):
 		if (len(self.projects) == 0):
