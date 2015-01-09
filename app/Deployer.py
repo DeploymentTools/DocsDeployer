@@ -133,7 +133,7 @@ class Deployer():
 
 		for branch in self.log_branches:
 			extra = ""
-			if (branch["root"] == True):
+			if (branch["root"] == False):
 				extra = """<span class="status status_inprogress" title="status">in progress</span>"""
 			
 			html_box_items += """
