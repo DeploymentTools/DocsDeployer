@@ -20,6 +20,7 @@ class Deployer():
 	repo_path = ""
 	doc_output_path = ""
 	log_branches = []
+	report_template_html = ""
 	ID_filter_active = True # will only select branches that start with a numeric ID followed by an underline sign
 	config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir,  "config"))
 
@@ -27,6 +28,9 @@ class Deployer():
 		self.load_configuration()
 		self.run_diagnostics()
 		self.init_generator()
+
+		report_template_html_file = open(os.path.join(self.config_path, "template.html"), 'r+')
+		self.report_template_html = report_template_html_file.read()
 		pass
 
 	def get_dump_path(self):
@@ -80,8 +84,9 @@ class Deployer():
 
 			if (branch_name != "master"):
 				if (self.ID_filter_active == False) or ((self.ID_filter_active == True) and (re.match(r"^\d_", branch_name) is not None)):
-					self.log_branches.append({"project": projectname, "branch": branch_name, "commit": logentry.split(' ')[1]})
-
+					self.log_branches.append({"project": projectname, "branch": branch_name, "commit": logentry.split(' ')[1], "root": False})
+			else:
+				self.log_branches.append({"project": projectname, "branch": branch_name, "commit": logentry.split(' ')[1], "root": True})
 
 	def sync_repositories(self):
 		self.halt_on_error()
@@ -107,7 +112,7 @@ class Deployer():
 
 			# generate
 			docgenerator_command = self.generator.get_command(repository_entry_path, doc_entry_path)
-			os.system(docgenerator_command) # uncomment to generate documentation
+			# os.system(docgenerator_command) # uncomment to generate documentation
 			self.append_docgenerator_command(docgenerator_command)
 
 			# process branches
@@ -116,7 +121,36 @@ class Deployer():
 		# save logs
 		self.save_log_docgenerator_commands()
 		self.save_log_branches()
-		pass
+		self.generate_html_frontend()
+
+	def generate_html_frontend(self):
+		html = self.report_template_html
+		html_sidebar_items = ""
+		html_box_items = ""
+
+		for project in self.projects:
+			html_sidebar_items += "<li><a href=\"documentation/" + project["name"] + "/index.html\">" + project["name"] + "</a></li>"
+
+		for branch in self.log_branches:
+			extra = ""
+			if (branch["root"] == True):
+				extra = """<span class="status status_inprogress" title="status">in progress</span>"""
+			
+			html_box_items += """
+		<div class="box""" + (" mainbox" if (branch["root"] == True) else "") + """\">
+			<a href="documentation/""" + branch["project"] + """/index.html">
+				<span class="project" title="project title">""" + branch["project"] + """</span>
+				<span class="branch" title="branch">""" + branch["branch"] + """</span>
+			</a>
+			<input type="text" onclick="this.select()" class="commit" title="latest commit" value=""" + branch["commit"] + """ />
+			""" + extra + """
+		</div>"""
+
+		html = html.replace("<!-- SIDEBAR_ITEMS -->", html_sidebar_items)
+		html = html.replace("<!-- BOX_ITEMS -->", html_box_items)
+
+		output_html = open(os.path.join(self.setup['dumppath'], 'index.html'), 'w')
+		output_html.write(html)
 
 	def run_diagnostics(self):
 		if (len(self.projects) == 0):
