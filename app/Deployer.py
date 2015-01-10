@@ -19,7 +19,7 @@ class Deployer():
 	log_docgenerator_commands = ""
 	repo_path = ""
 	doc_output_path = ""
-	log_branches = []
+	log_branches = {}
 	report_template_html = ""
 	ID_filter_active = True # will only select branches that start with a numeric ID followed by an underline sign
 	config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir,  "config"))
@@ -48,6 +48,83 @@ class Deployer():
 
 		return True
 
+	def make_path(self, path):
+		if (os.path.isdir(path) == False):
+			os.mkdir(path)
+
+	def refresh_repository(self, project):
+		path = self.get_repo_path(project)
+
+		if (os.path.isdir(path)):
+			repo = Repo(path)
+			origin = repo.remotes.origin
+			origin.fetch()
+			origin.pull()
+			repo.git.checkout(project['branch'])
+		else:
+			Repo.clone_from(project['repo'], path)
+		pass
+
+	def extract_branches(self, project):
+		repo = Repo(self.get_repo_path(project))
+		headcommit = repo.heads
+
+		entry = {"name": project["name"], "branch": project["branch"], "commit": "", "branches":[]}
+
+		for branch in headcommit:
+			logentry = str(branch.log()[-1])
+			branch_name = str(branch)
+
+			if (branch_name != project['branch']):
+				if (self.ID_filter_active == False) or ((self.ID_filter_active == True) and (re.match(r"^\d_", branch_name) is not None)):
+					branch_entry = {}
+					branch_entry["branch"] = branch_name
+					branch_entry["commit"] = logentry.split(' ')[1]
+					branch_entry["status"] = "unknown"
+					branch_entry["author"] = "unknown"
+					entry["branches"].append(branch_entry)
+			else:
+				entry["commit"] = logentry.split(' ')[1]
+
+		self.log_branches[project["name"]] = entry
+
+	def get_repos_path(self):
+		return os.path.join(self.setup['dumppath'], "repositories")
+
+	def get_repo_path(self, project):
+		return os.path.join(self.get_repos_path(), project['name'])
+
+	def get_docs_path(self):
+		return os.path.join(self.setup['dumppath'], "documentation")
+
+	def get_doc_path(self, project):
+		return os.path.join(self.get_docs_path(), project['name'])
+
+	def sync_repositories(self):
+		self.halt_on_error()
+		self.errors = []
+
+		self.make_path(self.get_repos_path())
+		self.make_path(self.get_docs_path())
+
+		# sync projects
+		for project in self.projects:
+			self.refresh_repository(project)
+			self.extract_branches(project)
+
+			# create doc project entry folder
+			self.make_path(self.get_doc_path(project))
+
+			# generate main documentation
+			docgenerator_command = self.generator.get_command(self.get_repo_path(project), self.get_doc_path(project))
+			os.system(docgenerator_command) # uncomment to generate documentation
+			self.append_docgenerator_command(docgenerator_command)
+
+		# save logs
+		self.save_log_docgenerator_commands()
+		self.save_log_branches()
+		self.generate_html_frontend()
+
 	def append_docgenerator_command(self, command):
 		self.log_docgenerator_commands += command + "\n"
 
@@ -59,98 +136,9 @@ class Deployer():
 		log_branches_file = open(os.path.join(self.setup['dumppath'], 'project_branches.json'), 'w')
 		log_branches_file.write(json.dumps(self.log_branches))
 
-	def make_path(self, path):
-		if (os.path.isdir(path) == False):
-			os.mkdir(path)
-
-	def refresh_repository(self, URL, path, branch):
-		if (os.path.isdir(path)):
-			repo = Repo(path)
-			origin = repo.remotes.origin
-			origin.fetch()
-			origin.pull()
-			repo.git.checkout(branch)
-		else:
-			Repo.clone_from(URL, repository_entry_path)
-		pass
-
-	def extract_branches(self, path, projectname):
-		repo = Repo(path)
-		headcommit = repo.heads
-
-		for branch in headcommit:
-			logentry = str(branch.log()[-1])
-			branch_name = str(branch)
-
-			if (branch_name != "master"):
-				if (self.ID_filter_active == False) or ((self.ID_filter_active == True) and (re.match(r"^\d_", branch_name) is not None)):
-					self.log_branches.append({"project": projectname, "branch": branch_name, "commit": logentry.split(' ')[1], "root": False})
-			else:
-				self.log_branches.append({"project": projectname, "branch": branch_name, "commit": logentry.split(' ')[1], "root": True})
-
-	def sync_repositories(self):
-		self.halt_on_error()
-		self.errors = []
-
-		# basic paths
-		repo_path = os.path.join(self.setup['dumppath'], "repositories")
-		doc_output_path = os.path.join(self.setup['dumppath'], "documentation")
-
-		self.make_path(repo_path)
-		self.make_path(doc_output_path)
-
-		# sync projects
-		for project in self.projects:
-			repository_entry_path = os.path.join(repo_path, project['name'])
-
-			# clone or pull
-			self.refresh_repository(project['repo'], repository_entry_path, project['branch'])
-
-			# create doc project entry folder
-			doc_entry_path = os.path.join(doc_output_path, project['name'])
-			self.make_path(doc_entry_path)
-
-			# generate
-			docgenerator_command = self.generator.get_command(repository_entry_path, doc_entry_path)
-			# os.system(docgenerator_command) # uncomment to generate documentation
-			self.append_docgenerator_command(docgenerator_command)
-
-			# process branches
-			self.extract_branches(repository_entry_path, project['name'])
-
-		# save logs
-		self.save_log_docgenerator_commands()
-		self.save_log_branches()
-		self.generate_html_frontend()
-
 	def generate_html_frontend(self):
-		html = self.report_template_html
-		html_sidebar_items = ""
-		html_box_items = ""
-
-		for project in self.projects:
-			html_sidebar_items += "<li><a href=\"documentation/" + project["name"] + "/index.html\">" + project["name"] + "</a></li>"
-
-		for branch in self.log_branches:
-			extra = ""
-			if (branch["root"] == False):
-				extra = """<span class="status status_inprogress" title="status">in progress</span>"""
-			
-			html_box_items += """
-		<div class="box""" + (" mainbox" if (branch["root"] == True) else "") + """\">
-			<a href="documentation/""" + branch["project"] + """/index.html">
-				<span class="project" title="project title">""" + branch["project"] + """</span>
-				<span class="branch" title="branch">""" + branch["branch"] + """</span>
-			</a>
-			<input type="text" onclick="this.select()" class="commit" title="latest commit" value=""" + branch["commit"] + """ />
-			""" + extra + """
-		</div>"""
-
-		html = html.replace("<!-- SIDEBAR_ITEMS -->", html_sidebar_items)
-		html = html.replace("<!-- BOX_ITEMS -->", html_box_items)
-
 		output_html = open(os.path.join(self.setup['dumppath'], 'index.html'), 'w')
-		output_html.write(html)
+		output_html.write(self.report_template_html.replace("[--BRANCHES--]", json.dumps(self.log_branches)))
 
 	def run_diagnostics(self):
 		if (len(self.projects) == 0):
