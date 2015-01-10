@@ -13,8 +13,41 @@
 	<div id="main">
 	</div>
 
+	<script src="http://code.jquery.com/jquery-1.11.2.min.js"></script>
 	<script>
-		var branches = '[--BRANCHES--]';
+		var branches = jQuery.parseJSON('[--BRANCHES--]');
+
+		var sidebaritems = [];
+		var mainitems = [];
+
+		jQuery(document).ready(function(){
+			jQuery.each(branches, function(project, info){
+				sidebaritems.push('<li><a href="documentation/' + project + '/index.html">' + project + '</a></li>');
+
+				mainitems.push('<div class="box mainbox">' +
+				'<a href="documentation/' + project + '/index.html">' +
+				'	<span class="project" title="project title">' + project + '</span>' +
+				'	<span class="branch" title="branch">' + info.branch + '</span>' +
+				'</a>' +
+				'<input onclick="this.select()" class="commit" title="latest commit" value="' + info.commit + '" type="text">' +
+				'</div>');
+
+				jQuery.each(info.branches, function(i,v){
+					mainitems.push('<div class="box">' +
+					'<a href="documentation/' + project + '_' + v.branch + '/index.html">' +
+					'	<span class="project" title="project title">' + project + '</span>' +
+					'	<span class="branch" title="branch">' + v.branch + '</span>' +
+					'	<span class="author" title="author">' + v.author + '</span>' +
+					'	<span class="status" title="status">' + v.status + '</span>' +
+					'</a>' +
+					'<input onclick="this.select()" class="commit" title="latest commit" value="' + v.commit + '" type="text">' +
+					'</div>');
+				});
+			});
+
+			jQuery('#menu').html(sidebaritems.join(""));
+			jQuery('#main').html(mainitems.join(""));
+		});
 	</script>
 
 	<style type="text/css">
@@ -32,16 +65,17 @@
 		#menu li:hover a {color:#ddd}
 		#menu li a { display: block; text-align: center; font-size: 13px; padding:10px 5px; color:#fff}
 
-		.box {width: 31.5%; margin:0.5%; height:120px; background: #fefefe; border-radius: 3px; border: 1px solid #eee; box-shadow: 0 0 5px rgba(50,50,50,0.05); float: left}
+		.box {width: 31.5%; margin:0.5%; height:140px; background: #fefefe; border-radius: 3px; border: 1px solid #eee; box-shadow: 0 0 5px rgba(50,50,50,0.05); float: left}
 		.box:hover {background: #fcfcfc}
 		.box.mainbox {background: #046; color:#fff}
 		.box.mainbox a, .box.mainbox span, .box.mainbox input {color:#fff}
 
 		.box a {display: block; padding:10px 0 0 0;}
-		.box span {display: block; padding:3px 10px; line-height: 17px}
+		.box span {display: block; padding:3px 10px; line-height: 15px}
 		.box .commit {border:none; width:95%; background: none; margin-left: 10px}
 		.box .project {font-weight: bold; font-size:15px; padding-bottom: 10px}
 		.box .status:before {content: "Status: "}
+		.box .author:before {content: "Author: "}
 
 		@media (max-width: 1300px) {
 			.box {width: 48.5%; margin:0.5%}
