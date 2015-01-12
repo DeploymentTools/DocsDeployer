@@ -4,12 +4,10 @@ from git import Repo
 
 from Generator import FactoryGenerator
 
-import git
 import json
 import os
 import sys
 import re
-import urllib
 
 class Deployer():
 	errors = []
