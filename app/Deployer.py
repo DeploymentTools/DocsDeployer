@@ -1,8 +1,9 @@
 # pip install gitpython
 # http://packages.python.org/GitPython/
+import git
 from git import Repo
 
-from Generator import FactoryGenerator
+from .Generator import FactoryGenerator
 
 import json
 import os
@@ -20,16 +21,27 @@ class Deployer():
 	log_branches = {}
 	report_template_html = ""
 	ID_filter_active = True # will only select branches that start with a numeric ID followed by an underline sign
-	config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir,  "config"))
+	config_path = False
 
 	def __init__(self):
+		pass
+
+	def initialize(self):
+		self.prepareConfigPath()
 		self.load_configuration()
 		self.run_diagnostics()
 		self.init_generator()
+		self.load_report_template()
+		pass
 
+	def load_report_template(self):
 		report_template_html_file = open(os.path.join(self.config_path, "template.html"), 'r+')
 		self.report_template_html = report_template_html_file.read()
-		pass
+		report_template_html_file.close()
+
+	def prepareConfigPath(self):
+		if (self.config_path == False):
+			self.config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir,  "config"))
 
 	def get_dump_path(self):
 		return self.setup['dumppath']
@@ -49,6 +61,8 @@ class Deployer():
 	def make_path(self, path):
 		if (os.path.isdir(path) == False):
 			os.mkdir(path)
+			return True
+		return False
 
 	def refresh_repository(self, project):
 		path = self.get_repo_path(project)
@@ -129,10 +143,12 @@ class Deployer():
 	def save_log_docgenerator_commands(self):
 		log_docgenerator_file = open(os.path.join(self.setup['dumppath'], 'docgenerator_commands.sh'), 'w')
 		log_docgenerator_file.write(self.log_docgenerator_commands)
+		log_docgenerator_file.close()
 
 	def save_log_branches(self):
 		log_branches_file = open(os.path.join(self.setup['dumppath'], 'project_branches.json'), 'w')
 		log_branches_file.write(json.dumps(self.log_branches))
+		log_branches_file.close()
 
 	def generate_html_frontend(self):
 		output_html = open(os.path.join(self.setup['dumppath'], 'index.html'), 'w')
@@ -144,10 +160,10 @@ class Deployer():
 		else:
 			project_names = []
 			for project in self.projects:
-				if (project.has_key('repo') == False):
+				if ('repo' not in project):
 					self.errors.append("Invalid project entry. Repo key must be set for all entries.")
 			
-				if (project.has_key('name') == False):
+				if ("name" not in project):
 					self.errors.append("Invalid project entry. Name key must be set for all entries.")
 				else:
 					check_alphanum = re.findall('^[\w-]+$', project['name'])
@@ -164,7 +180,7 @@ class Deployer():
 		if (len(self.setup) == 0):
 			self.errors.append("No setup found or config/setup.json file is corrupt.")
 		else:
-			if (self.setup.has_key('dumppath') == False):
+			if ('dumppath' not in self.setup):
 				self.errors.append("No dump path key found. Create a dumppath entry in the config/setup.json file")
 			else:
 				if (os.path.isdir(self.setup['dumppath']) == False):
@@ -192,14 +208,18 @@ class Deployer():
 
 		if (os.path.isfile(projects_file_path)):
 			try:
-				self.projects = json.loads(open(projects_file_path, 'r').read())
-			except Exception, e:
+				f = open(projects_file_path, 'r')
+				self.projects = json.loads(f.read())
+				f.close()
+			except Exception:
 				pass
 
 		if (os.path.isfile(setup_file_path)):
 			try:
-				self.setup = json.loads(open(setup_file_path, 'r').read())
-			except Exception, e:
+				f = open(setup_file_path, 'r')
+				self.setup = json.loads(f.read())
+				f.close()
+			except Exception:
 				pass
 
 		pass
