@@ -4,6 +4,6 @@
 		"user": "deployer",
 		"apikey": "???"
 	},
-	"dumppath": "/home/deployer/dumppath",
+	"dumppath": "./dumppath",
 	"generator": "apigen"
 }
