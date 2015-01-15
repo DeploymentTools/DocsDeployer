@@ -3,12 +3,13 @@ language: python
 python:
   - "2.7"
   - "3.3"
-
+before_install:
+  - sudo apt-get update
 install:
-  - sudo pip install gitpython
-  - sudo apt-get install python3-setuptools
+  - pip install gitpython
+  - apt-get install python3-setuptools
   - sudo easy_install3 pip
-  - sudo pip3 install gitpython
+  - pip3 install gitpython
 
 script:
   - {envpython} -m unittest discover --pattern=starter.py
