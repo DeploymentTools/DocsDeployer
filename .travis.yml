@@ -10,9 +10,14 @@ install:
   - sudo apt-get install python3-setuptools
   - sudo easy_install pip
   - sudo pip install gitpython
-
+matrix:
+  include:
+    - python: "2.7"
+      env:  envpython=python2
+    - python: "3.3"
+      env:  envpython=python3
 script:
-  - python -m unittest discover --pattern=starter.py
+  - $envpython -m unittest discover --pattern=starter.py
 
 branches:
   only:
