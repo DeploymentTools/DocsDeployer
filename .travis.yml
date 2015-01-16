@@ -7,7 +7,7 @@ before_install:
   - sudo apt-get update
 install:
   - pip install gitpython
-  - apt-get install python3-setuptools
+  - sudo apt-get install python3-setuptools
   - sudo easy_install3 pip
   - pip3 install gitpython
 
