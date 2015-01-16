@@ -8,8 +8,8 @@ before_install:
 install:
   - pip install gitpython
   - sudo apt-get install python3-setuptools
-  - sudo easy_install3 pip
-  - pip3 install gitpython
+  - sudo easy_install pip
+  - sudo pip install gitpython
 
 script:
   - python -m unittest discover --pattern=starter.py
