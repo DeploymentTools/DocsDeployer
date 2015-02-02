@@ -70,9 +70,12 @@ class Deployer():
 		if (os.path.isdir(path)):
 			repo = Repo(path)
 			origin = repo.remotes.origin
-			origin.fetch()
-			origin.pull()
-			repo.git.checkout(project['branch'])
+			try:
+				origin.fetch()
+				origin.pull()
+				repo.git.checkout(project['branch'])
+			except Exception:
+				pass
 		else:
 			Repo.clone_from(project['repo'], path)
 		pass
@@ -123,6 +126,7 @@ class Deployer():
 		for project in self.projects:
 			self.refresh_repository(project)
 			self.extract_branches(project)
+			self.extract_diff_with_master_branch(project)
 
 			# create doc project entry folder
 			self.make_path(self.get_doc_path(project))
@@ -221,5 +225,11 @@ class Deployer():
 				f.close()
 			except Exception:
 				pass
-
+		print
 		pass
+	def extract_diff_with_master_branch(self, project):
+		repo = Repo(self.get_repo_path(project))
+		
+
+		self.errors.append("No message")
+		self.halt_on_error()
