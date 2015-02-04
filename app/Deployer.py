@@ -2,6 +2,8 @@
 # http://packages.python.org/GitPython/
 import git
 from git import Repo
+import pprint
+import json
 
 from .Generator import FactoryGenerator
 
@@ -9,6 +11,7 @@ import json
 import os
 import sys
 import re
+from printr import printr
 
 class Deployer():
 	errors = []
@@ -22,6 +25,7 @@ class Deployer():
 	report_template_html = ""
 	ID_filter_active = True # will only select branches that start with a numeric ID followed by an underline sign
 	config_path = False
+	log_diff_files = {}
 
 	def __init__(self):
 		pass
@@ -228,8 +232,18 @@ class Deployer():
 		print
 		pass
 	def extract_diff_with_master_branch(self, project):
-		repo = Repo(self.get_repo_path(project))
-		
+		# set detached head for each branch
+		branch_to_compare = project['branch']
+		for branch in self.log_branches[project['name']]['branches']:
+			repo = Repo(self.get_repo_path(project))
+			head_commit = repo.head.commit
+			diff_object = head_commit.diff('HEAD~2')
+	
+			for diff_added in diff_object.iter_change_type('M'):
+	 			self.log_diff_files[project] = diff_added.a_blob.path
+	 			self.errors.append(a)
+# 		git1 = git.cmd.Git(self.get_repo_path(project)) # for the moment is no need to run direct the git command
+
 
 		self.errors.append("No message")
 		self.halt_on_error()
