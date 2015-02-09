@@ -94,7 +94,7 @@ class Deployer():
 			branch_name = str(branch)
 
 			if (branch_name != project['branch']):
-				if (self.ID_filter_active == False) or ((self.ID_filter_active == True) and (re.match(r"^#\d_", branch_name) is not None)):
+				if (self.ID_filter_active == False) or ((self.ID_filter_active == True) and (re.match(r"^#?\d_", branch_name) is not None)):
 					branch_entry = {}
 					branch_entry["branch"] = branch_name
 					branch_entry["commit"] = logentry.split(' ')[1]
