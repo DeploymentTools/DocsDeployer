@@ -163,9 +163,10 @@ class Deployer():
 		project_name = project['name']
 		if project_name in self.log_diff_files:
 			for branch_name in self.log_diff_files[project_name].keys():
-				log_diff_file = open(os.path.join(self.setup['dumppath'], project_name+'_diff_files_'+branch_name+'.json'), 'w')
-				log_diff_file.write(json.dumps(self.log_diff_files[project_name][branch_name]))
-				log_diff_file.close()
+				if len(self.log_diff_files[project_name][branch_name]) > 0:
+					log_diff_file = open(os.path.join(self.setup['dumppath'], project_name+'_diff_files_'+branch_name+'.json'), 'w')
+					log_diff_file.write(json.dumps(self.log_diff_files[project_name][branch_name]))
+					log_diff_file.close()
 
 	def generate_html_frontend(self):
 		output_html = open(os.path.join(self.setup['dumppath'], 'index.html'), 'w')
@@ -248,12 +249,14 @@ class Deployer():
 		repo.head.reset(index=True, working_tree=True)
 		repo.git.checkout(branch_to_compare)
 		head_commit = repo.head.commit
+		self.log_diff_files[project_name] = {}
 
 		for branch_info in self.log_branches[project_name]['branches']:
 			diff_object = head_commit.diff(branch_info['commit'])
-			
+			self.log_diff_files[project_name][branch_info['branch']] = []
+
 			for diff_added in diff_object.iter_change_type('M'):
-				self.log_diff_files[project_name][branch_info['name']].append(diff_added.a_blob.path)
+				self.log_diff_files[project_name][branch_info['branch']].append(diff_added.a_blob.path)
 
 	def apply_redmine_filter_to_clear_branches(self, project):
 		no_error = True
