@@ -12,6 +12,7 @@ import os
 import sys
 import re
 from printr import printr
+from redmine import Redmine
 
 class Deployer():
 	errors = []
@@ -95,7 +96,7 @@ class Deployer():
 			branch_name = str(branch)
 
 			if (branch_name != project['branch']):
-				if (self.ID_filter_active == False) or ((self.ID_filter_active == True) and (re.match(r"^\d_", branch_name) is not None)):
+				if (self.ID_filter_active == False) or ((self.ID_filter_active == True) and (re.match(r"^#\d_", branch_name) is not None)):
 					branch_entry = {}
 					branch_entry["branch"] = branch_name
 					branch_entry["commit"] = logentry.split(' ')[1]
@@ -130,6 +131,7 @@ class Deployer():
 		for project in self.projects:
 			self.refresh_repository(project)
 			self.extract_branches(project)
+			self.apply_redmine_filter_to_clear_branches(project)
 			self.extract_diff_with_master_branch(project)
 
 			# create doc project entry folder
@@ -239,11 +241,33 @@ class Deployer():
 			head_commit = repo.head.commit
 			diff_object = head_commit.diff('HEAD~2')
 	
-			for diff_added in diff_object.iter_change_type('M'):
+			for diff_added in diff_object.iter_change_type('A,D,M'):
 	 			self.log_diff_files[project] = diff_added.a_blob.path
 	 			self.errors.append(a)
 # 		git1 = git.cmd.Git(self.get_repo_path(project)) # for the moment is no need to run direct the git command
 
 
-		self.errors.append("No message")
+		self.errors.append("Message from 'extract_diff_with_master_branch' ")
 		self.halt_on_error()
+	def apply_redmine_filter_to_clear_branches(self, project):
+		no_error = True
+		try:
+			redmine = Redmine(self.setup['redmine']['url'], name = self.setup['redmine']['user'], passwd = self.setup['redmine']['password'])
+			# redmine_project= redmine.project.get(project['redmine_project'])
+			branches = []
+			for branch_info in self.log_branches[project['name']]['branches']:
+				# extract the corresponded issue id
+				issue_id = re.match(r"^#(\d+)_", branch_info['branch']).group(1)
+				issue = redmine.issue.get(issue_id)
+				if issue.status.name.lower() !='closed':
+					branch_info['status'] = issue.status.name.lower()
+					branches.append(branch_info)
+		except Exception:
+			no_error = False
+			pass
+		
+		# overwrite branches with the filtered one
+		# can be risky
+		# we can have zero valid branches  
+		if no_error :
+			self.log_branches[project['name']]['branches'] = branches
