@@ -2,17 +2,15 @@
 # http://packages.python.org/GitPython/
 import git
 from git import Repo
-import pprint
-import json
+from redmine import Redmine
 
+import json
 from .Generator import FactoryGenerator
 
 import json
 import os
 import sys
 import re
-from printr import printr
-from redmine import Redmine
 
 class Deployer():
 	errors = []
@@ -145,6 +143,7 @@ class Deployer():
 		# save logs
 		self.save_log_docgenerator_commands()
 		self.save_log_branches()
+		self.save_log_diff_files(project)
 		self.generate_html_frontend()
 
 	def append_docgenerator_command(self, command):
@@ -159,6 +158,14 @@ class Deployer():
 		log_branches_file = open(os.path.join(self.setup['dumppath'], 'project_branches.json'), 'w')
 		log_branches_file.write(json.dumps(self.log_branches))
 		log_branches_file.close()
+	
+	def save_log_diff_files(self, project):
+		project_name = project['name']
+		if project_name in self.log_diff_files:
+			for branch_name in self.log_diff_files[project_name].keys():
+				log_diff_file = open(os.path.join(self.setup['dumppath'], project_name+'_diff_files_'+branch_name+'.json'), 'w')
+				log_diff_file.write(json.dumps(self.log_diff_files[project_name][branch_name]))
+				log_diff_file.close()
 
 	def generate_html_frontend(self):
 		output_html = open(os.path.join(self.setup['dumppath'], 'index.html'), 'w')
@@ -231,24 +238,23 @@ class Deployer():
 				f.close()
 			except Exception:
 				pass
-		print
 		pass
 	def extract_diff_with_master_branch(self, project):
 		# set detached head for each branch
 		branch_to_compare = project['branch']
-		for branch in self.log_branches[project['name']]['branches']:
-			repo = Repo(self.get_repo_path(project))
-			head_commit = repo.head.commit
-			diff_object = head_commit.diff('HEAD~2')
-	
-			for diff_added in diff_object.iter_change_type('A,D,M'):
-	 			self.log_diff_files[project] = diff_added.a_blob.path
-	 			self.errors.append(a)
-# 		git1 = git.cmd.Git(self.get_repo_path(project)) # for the moment is no need to run direct the git command
+		project_name =project['name']
+		repo = Repo(self.get_repo_path(project))
+		# clean dirty files or work in progress (we should not have) and checkout to master branch
+		repo.head.reset(index=True, working_tree=True)
+		repo.git.checkout(branch_to_compare)
+		head_commit = repo.head.commit
 
+		for branch_info in self.log_branches[project_name]['branches']:
+			diff_object = head_commit.diff(branch_info['commit'])
+			
+			for diff_added in diff_object.iter_change_type('M'):
+				self.log_diff_files[project_name][branch_info['name']].append(diff_added.a_blob.path)
 
-		self.errors.append("Message from 'extract_diff_with_master_branch' ")
-		self.halt_on_error()
 	def apply_redmine_filter_to_clear_branches(self, project):
 		no_error = True
 		try:
