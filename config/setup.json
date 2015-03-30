@@ -1,8 +1,8 @@
 {
 	"redmine": {
-		"url": "http://localhost:8888",
-		"user": "deployer",
-		"apikey": "???"
+		"url": "http://redmine.local",
+		"user": "admine",
+		"password": "admin"
 	},
 	"dumppath": "",
 	"generator": "apigen",

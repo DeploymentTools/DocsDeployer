@@ -1,6 +1,6 @@
 [{
 	"name": "CodeGraph",
 	"repo": "https://github.com/bogdananton/PHP-CodeGraph",
-	"redmine": "codegraph",
+	"redmine_project": "test deployer",
 	"branch": "master"
 }]

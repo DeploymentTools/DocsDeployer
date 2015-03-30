@@ -1,4 +1,4 @@
-import Apigen
+from . import Apigen
 
 class FactoryGenerator(object):
 	generators = {"apigen": Apigen.Apigen()}
