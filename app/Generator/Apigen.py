@@ -3,11 +3,12 @@ import urllib
 
 class Apigen():
 	dump_path = ""
+	docgenerator_name = "apigen"
 	docgenerator_path = ""
 	docgenerator_apigen_file = ""
 		
 	def initialize(self):
-		self.docgenerator_apigen_file = os.path.join(self.docgenerator_path, "apigen.phar")
+		self.docgenerator_apigen_file = os.path.join(self.docgenerator_path, self.docgenerator_name)
 
 		if (os.path.isfile(self.docgenerator_apigen_file) == False):
 			urllib.urlretrieve("http://apigen.org/apigen.phar", self.docgenerator_apigen_file)

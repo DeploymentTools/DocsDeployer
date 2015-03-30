@@ -33,10 +33,17 @@ class Deployer():
 
 	def get_dump_path(self):
 		return self.setup['dumppath']
+	
+	def get_generator_path(self):
+		return self.setup['generator_path']
+	
+	def get_generator_name(self):
+		return self.setup['generator']
 
 	def init_generator(self):
-		docgenerator_path = os.path.join(self.get_dump_path(), "docgenerators")
-		self.make_path(docgenerator_path)
+		docgenerator_path = self.get_generator_path()
+		if (os.path.isdir(docgenerator_path) == False):
+			self.make_path(docgenerator_path)
 
 		generator = FactoryGenerator.FactoryGenerator.get_instance(self.setup['generator'])
 		generator.dump_path = self.get_dump_path()
